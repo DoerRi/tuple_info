@@ -1,5 +1,3 @@
-use std::any::{Any, TypeId};
-
 pub trait TupleInfo {
     const LEN: usize;
     type DeconstructedReference<'a>;
@@ -10,20 +8,22 @@ pub trait TupleInfo {
         Self::LEN
     }
     fn index<T: 'static>() -> Option<usize>;
-    fn types() -> Vec<TypeId>;
+    fn types() -> Vec<std::any::TypeId>;
     fn deconstruct<'a>(&'a self) -> Self::DeconstructedReference<'a>;
     fn mut_deconstruct<'a>(&'a mut self) -> Self::MutDeconstructedReference<'a>;
-    fn try_deconstruction<'a>(anies: &[&'a dyn Any]) -> Option<Self::DeconstructedReference<'a>>;
+    fn try_deconstruction<'a>(
+        anies: &[&'a dyn std::any::Any],
+    ) -> Option<Self::DeconstructedReference<'a>>;
     fn try_mut_deconstruction<'a>(
-        anies: Vec<&'a mut dyn Any>,
+        anies: Vec<&'a mut dyn std::any::Any>,
     ) -> Option<Self::MutDeconstructedReference<'a>>;
-    fn get(&self, index: usize) -> Option<&dyn Any>;
-    fn get_mut(&mut self, index: usize) -> Option<&mut dyn Any>;
+    fn get(&self, index: usize) -> Option<&dyn std::any::Any>;
+    fn get_mut(&mut self, index: usize) -> Option<&mut dyn std::any::Any>;
     fn foreach_type<'a, T: ForeachTypeStrategie<'a>>(input: T::Input)
     -> (Vec<T::Output>, T::Input);
     fn map_type<'a, S: MapTypeStrategie<'a>>(self, input: S::Input) -> (Vec<S::Output>, S::Input);
-    fn as_anyies<'a>(&'a self) -> Vec<&'a dyn Any>;
-    fn as_mut_anyies<'a>(&'a mut self) -> Vec<&'a mut dyn Any>;
+    fn as_anyies<'a>(&'a self) -> Vec<&'a dyn std::any::Any>;
+    fn as_mut_anyies<'a>(&'a mut self) -> Vec<&'a mut dyn std::any::Any>;
 }
 pub trait ForeachTypeStrategie<'a> {
     type Output;
@@ -52,8 +52,8 @@ impl<A: 'static, B: 'static> TupleInfo for (A, B) {
     where
         Self: 'a;
 
-    fn types() -> Vec<TypeId> {
-        vec![TypeId::of::<A>(), TypeId::of::<B>()]
+    fn types() -> Vec<std::any::TypeId> {
+        vec![std::any::TypeId::of::<A>(), std::any::TypeId::of::<B>()]
     }
 
     fn deconstruct<'a>(&'a self) -> Self::DeconstructedReference<'a> {
@@ -66,28 +66,30 @@ impl<A: 'static, B: 'static> TupleInfo for (A, B) {
         (a, b)
     }
 
-    fn get(&self, index: usize) -> Option<&dyn Any> {
+    fn get(&self, index: usize) -> Option<&dyn std::any::Any> {
         match index {
-            0 => Some(&self.0 as &dyn Any),
-            1 => Some(&self.1 as &dyn Any),
+            0 => Some(&self.0 as &dyn std::any::Any),
+            1 => Some(&self.1 as &dyn std::any::Any),
             _ => None,
         }
     }
 
-    fn get_mut(&mut self, index: usize) -> Option<&mut dyn Any> {
+    fn get_mut(&mut self, index: usize) -> Option<&mut dyn std::any::Any> {
         match index {
-            0 => Some(&mut self.0 as &mut dyn Any),
-            1 => Some(&mut self.1 as &mut dyn Any),
+            0 => Some(&mut self.0 as &mut dyn std::any::Any),
+            1 => Some(&mut self.1 as &mut dyn std::any::Any),
             _ => None,
         }
     }
 
-    fn try_deconstruction<'a>(anies: &[&'a dyn Any]) -> Option<Self::DeconstructedReference<'a>> {
+    fn try_deconstruction<'a>(
+        anies: &[&'a dyn std::any::Any],
+    ) -> Option<Self::DeconstructedReference<'a>> {
         Some((anies[0].downcast_ref::<A>()?, anies[1].downcast_ref::<B>()?))
     }
 
     fn try_mut_deconstruction<'a>(
-        mut anies: Vec<&'a mut dyn Any>,
+        mut anies: Vec<&'a mut dyn std::any::Any>,
     ) -> Option<Self::MutDeconstructedReference<'a>> {
         anies.reverse();
         Some((
@@ -116,19 +118,22 @@ impl<A: 'static, B: 'static> TupleInfo for (A, B) {
     }
 
     fn index<T: 'static>() -> Option<usize> {
-        match TypeId::of::<T>() {
-            t if t == TypeId::of::<A>() => Some(0),
-            t if t == TypeId::of::<B>() => Some(1),
+        match std::any::TypeId::of::<T>() {
+            t if t == std::any::TypeId::of::<A>() => Some(0),
+            t if t == std::any::TypeId::of::<B>() => Some(1),
             _ => None,
         }
     }
 
-    fn as_anyies<'a>(&'a self) -> Vec<&'a dyn Any> {
-        vec![&self.0 as &dyn Any, &self.1 as &dyn Any]
+    fn as_anyies<'a>(&'a self) -> Vec<&'a dyn std::any::Any> {
+        vec![&self.0 as &dyn std::any::Any, &self.1 as &dyn std::any::Any]
     }
 
-    fn as_mut_anyies<'a>(&'a mut self) -> Vec<&'a mut dyn Any> {
-        vec![&mut self.0 as &mut dyn Any, &mut self.1 as &mut dyn Any]
+    fn as_mut_anyies<'a>(&'a mut self) -> Vec<&'a mut dyn std::any::Any> {
+        vec![
+            &mut self.0 as &mut dyn std::any::Any,
+            &mut self.1 as &mut dyn std::any::Any,
+        ]
     }
 }
 /// ```
@@ -141,14 +146,14 @@ macro_rules! impl_tuple_info {
             type MutDeconstructedReference<'a> = ($(&'a mut $name,)+) where Self: 'a;
 
             fn index<T:'static>()->Option<usize>{
-                match TypeId::of::<T>(){
-                    $(t if t == TypeId::of::<$name>() => Some($idx),)*
+                match std::any::TypeId::of::<T>(){
+                    $(t if t == std::any::TypeId::of::<$name>() => Some($idx),)*
                     _ => None
                 }
             }
 
-            fn types() -> Vec<TypeId> {
-                vec![$(TypeId::of::<$name>()),+]
+            fn types() -> Vec< std::any::TypeId> {
+                vec![$( std::any::TypeId::of::<$name>()),+]
             }
 
 
@@ -160,28 +165,28 @@ macro_rules! impl_tuple_info {
                 ($( &mut self.$idx, )+)
             }
 
-            fn get(&self, index: usize) -> Option<&dyn Any> {
+            fn get(&self, index: usize) -> Option<&dyn  std::any::Any> {
                 match index {
-                    $($idx => Some(&self.$idx as &dyn Any),)+
+                    $($idx => Some(&self.$idx as &dyn  std::any::Any),)+
                     _ => None,
                 }
             }
 
-            fn get_mut(&mut self, index: usize) -> Option<&mut dyn Any> {
+            fn get_mut(&mut self, index: usize) -> Option<&mut dyn  std::any::Any> {
                 match index {
-                    $($idx => Some(&mut self.$idx as &mut dyn Any),)+
+                    $($idx => Some(&mut self.$idx as &mut dyn  std::any::Any),)+
                     _ => None,
                 }
             }
 
-            fn try_deconstruction<'a>(anies: &[&'a dyn Any]) -> Option<Self::DeconstructedReference<'a>> {
+            fn try_deconstruction<'a>(anies: &[&'a dyn  std::any::Any]) -> Option<Self::DeconstructedReference<'a>> {
                 Some((
                     $(anies[$idx].downcast_ref::<$name>()?,)+
                 ))
             }
 
             fn try_mut_deconstruction<'a>(
-                mut anies: Vec<&'a mut dyn Any>,
+                mut anies: Vec<&'a mut dyn  std::any::Any>,
             ) -> Option<Self::MutDeconstructedReference<'a>> {
                 anies.reverse();
                 Some((
@@ -212,17 +217,17 @@ macro_rules! impl_tuple_info {
                 (output,input)
             }
 
-            fn as_anyies<'a>(&'a self) -> Vec<&'a dyn Any>{
+            fn as_anyies<'a>(&'a self) -> Vec<&'a dyn  std::any::Any>{
                 vec![
                     $(
-                        (&self.$idx) as & dyn Any
+                        (&self.$idx) as & dyn  std::any::Any
                     ),*
                 ]
             }
-            fn as_mut_anyies<'a>(&'a mut self) -> Vec<&'a mut dyn Any>{
+            fn as_mut_anyies<'a>(&'a mut self) -> Vec<&'a mut dyn  std::any::Any>{
                 vec![
                     $(
-                        (&mut self.$idx) as &mut dyn Any
+                        (&mut self.$idx) as &mut dyn  std::any::Any
                     ),*
                 ]
             }
