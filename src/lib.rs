@@ -1,5 +1,6 @@
 pub trait TupleInfo {
     const LEN: usize;
+    const TYPES: &'static [std::any::TypeId];
     type DeconstructedReference<'a>;
     type MutDeconstructedReference<'a>
     where
@@ -8,7 +9,9 @@ pub trait TupleInfo {
         Self::LEN
     }
     fn index<T: 'static>() -> Option<usize>;
-    fn types() -> Vec<std::any::TypeId>;
+    fn types() -> &'static [std::any::TypeId] {
+        Self::TYPES
+    }
     fn deconstruct<'a>(&'a self) -> Self::DeconstructedReference<'a>;
     fn mut_deconstruct<'a>(&'a mut self) -> Self::MutDeconstructedReference<'a>;
     fn try_deconstruction<'a>(
@@ -44,6 +47,8 @@ pub trait MapTypeStrategie<'a> {
 /// ```
 impl<A: 'static, B: 'static> TupleInfo for (A, B) {
     const LEN: usize = 2;
+    const TYPES: &'static [std::any::TypeId] =
+        &[std::any::TypeId::of::<A>(), std::any::TypeId::of::<B>()];
 
     type DeconstructedReference<'a> = (&'a A, &'a B);
 
@@ -51,10 +56,6 @@ impl<A: 'static, B: 'static> TupleInfo for (A, B) {
         = (&'a mut A, &'a mut B)
     where
         Self: 'a;
-
-    fn types() -> Vec<std::any::TypeId> {
-        vec![std::any::TypeId::of::<A>(), std::any::TypeId::of::<B>()]
-    }
 
     fn deconstruct<'a>(&'a self) -> Self::DeconstructedReference<'a> {
         let (a, b) = self;
@@ -141,6 +142,7 @@ macro_rules! impl_tuple_info {
     ($($name:ident : $idx:tt),+) => {
         impl<$($name: 'static),+> TupleInfo for ($($name,)+) {
             const LEN: usize = count_idents!($($name),+);
+            const TYPES: &'static [std::any::TypeId] = &[$( std::any::TypeId::of::<$name>()),+];
 
             type DeconstructedReference<'a> = ($(&'a $name,)+);
             type MutDeconstructedReference<'a> = ($(&'a mut $name,)+) where Self: 'a;
@@ -150,10 +152,6 @@ macro_rules! impl_tuple_info {
                     $(t if t == std::any::TypeId::of::<$name>() => Some($idx),)*
                     _ => None
                 }
-            }
-
-            fn types() -> Vec< std::any::TypeId> {
-                vec![$( std::any::TypeId::of::<$name>()),+]
             }
 
 
